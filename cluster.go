@@ -34,42 +34,6 @@ type Cluster struct {
 	servers []Server
 }
 
-/**
-Profesores
-{
-  "cedula": "0987654321",
-  "nombre": "María González"
-}
-
-asignaturas
-{
-  "id": "matematicas",
-  "asignatura": "Matemáticas"
-}
-
-profesores_ciclo
-{
-  "id_profesor": "0987654321",
-  "id_asignaturas": "matematicas",
-  "ciclo": "2025-A"
-}
-
-Estudiantes
-{
-  "cedula": "1234567890",
-  "nombre": "Juan Pérez"
-}
-
-Matriculas
-{
-  "id": "Ma1",
-  "cedula_estudiante": "1234567890",
-  "id_profesores_ciclo": "M2025L",
-  "nota1": 8.5,
-  "nota2": 1.0
-}
-*/
-
 func (c *Cluster) Notify(req *http.Request, sender string) {
 	req = req.Clone(context.Background())
 	req.URL, _ = url.Parse(req.RequestURI)
@@ -112,6 +76,7 @@ func (c *Cluster) Notify(req *http.Request, sender string) {
 				req.Host = server.Addresses[0]
 				req.URL.Host = server.Addresses[0]
 				req.Header.Set("User-Agent", "middleware")
+				req.Header.Set("X-Middleware-Sent-By", sender)
 
 				resp, err := http.DefaultClient.Do(req)
 				checkResponse(&server, resp, err)
@@ -220,6 +185,10 @@ func checkResponse(server *Server, resp *http.Response, err error) {
 		return
 	}
 
+}
+
+func hasJsonBody(req *http.Request) bool {
+	return req.Header.Get("Content-Type") == "application/json"
 }
 
 func NewCluster(serverUrls [][]string) (Cluster, error) {

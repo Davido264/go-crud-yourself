@@ -46,12 +46,10 @@ func main() {
 		log.Printf("Received request: %s %s\n", method, req.URL.Path)
 
 		if method == http.MethodGet {
-			if !strings.HasSuffix(req.URL.Path, "/info") {
-				w.WriteHeader(http.StatusMethodNotAllowed)
-			} else {
+			if strings.HasSuffix(req.URL.Path, "/info") {
 				w.WriteHeader(http.StatusOK)
+				return
 			}
-			return
 		}
 
 		if method == "PING" {
@@ -60,7 +58,12 @@ func main() {
 			return
 		}
 
-		serverUUID := cluster.GetServerUUID(req.RemoteAddr)
+		senderUrl := req.Header.Get("X-Middleware-Sent-By")
+		if senderUrl == "" {
+			senderUrl = req.RemoteAddr
+		}
+
+		serverUUID := cluster.GetServerUUID(senderUrl)
 		if serverUUID == nil {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
