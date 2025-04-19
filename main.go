@@ -63,6 +63,7 @@ func main() {
 			senderUrl = req.RemoteAddr
 		}
 
+		log.Printf("Sender URL: %s", senderUrl)
 		serverUUID := cluster.GetServerUUID(senderUrl)
 		if serverUUID == nil {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -73,5 +74,6 @@ func main() {
 		w.WriteHeader(http.StatusNoContent)
 	})
 
+	log.Printf("Listening on port %d", *port)
 	http.ListenAndServe(fmt.Sprintf(":%d", *port), nil)
 }

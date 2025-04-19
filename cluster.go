@@ -35,65 +35,81 @@ type Cluster struct {
 }
 
 func (c *Cluster) Notify(req *http.Request, sender string) {
-	req = req.Clone(context.Background())
-	req.URL, _ = url.Parse(req.RequestURI)
-	req.RequestURI = ""
-
-	if req.URL.Scheme == "" {
-		req.URL.Scheme = "http"
-	}
-
-	var content string
+	var content []byte
 	if hasJsonBody(req) {
-		contentb, err := io.ReadAll(req.Body)
+		var err error
+		content, err = io.ReadAll(req.Body)
 		if err != nil {
 			log.Fatalf("Could not read request body: %v\n", err)
 		}
-		content = string(contentb)
 	}
 
+	log.Printf("Action: %v", req.Method)
+	log.Printf("Body: %v", string(content))
+	log.Println("Event Propagation Starts")
 	go func() {
 		wg := sync.WaitGroup{}
 
-		for _, server := range c.servers {
+		for i := range c.servers {
+			server := c.servers[i]
 			wg.Add(1)
 
-			go func () {
+			go func() {
 				defer wg.Done()
-				server.Mut.Lock()
 
 				if server.Uid == sender || !server.Valid || !server.Online {
 					if !server.Online {
-						server.Queue = append(server.Queue, Pending{Action: req.Method, Content: content})
+						log.Printf("Storing queue for %s\n", server.Uid)
+						server.Queue = append(server.Queue, Pending{Action: req.Method, Content: string(content)})
 					}
-					server.Mut.Unlock()
 					return
 				}
 
-				server.Mut.Unlock()
 				log.Printf("Notifying server %s\n", server.Addresses)
 
-				req.Host = server.Addresses[0]
-				req.URL.Host = server.Addresses[0]
-				req.Header.Set("User-Agent", "middleware")
-				req.Header.Set("X-Middleware-Sent-By", sender)
+				ctx := context.Background()
+				host := normHttp(server.Addresses[0])
+				u := fmt.Sprintf("%v%v", host, req.URL.String())
+				log.Println(u)
+				req2, err := http.NewRequestWithContext(ctx, req.Method, u, strings.NewReader(string(content)))
+				if err != nil {
+					log.Fatalf("Error creating request: %v", err)
+				}
 
-				resp, err := http.DefaultClient.Do(req)
+				normalizeRequests(req2, req, content)
+				req2.Host = server.Addresses[0]
+				req2.URL.Host = server.Addresses[0]
+				req2.Header.Set("User-Agent", "middleware")
+				req2.Header.Set("X-Middleware-Sent-By", sender)
+
+				resp, err := http.DefaultClient.Do(req2)
 				checkResponse(&server, resp, err)
 
-				server.Mut.Lock()
 				if !server.Online {
-					server.Queue = append(server.Queue, Pending{Action: req.Method, Content: content, Endpoint: req.URL.Path})
+					server.Queue = append(server.Queue, Pending{Action: req.Method, Content: string(content), Endpoint: req.URL.Path})
 				}
-				server.Mut.Unlock()
 			}()
+			wg.Wait()
 		}
 	}()
 }
 
 func (c *Cluster) GetServerUUID(addr string) *string {
+	u, err := url.Parse(normHttp(addr))
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+
 	for _, server := range c.servers {
-		if slices.Contains(server.Addresses, addr) {
+		contains := slices.ContainsFunc(server.Addresses, func(value string) bool {
+			valurl, err := url.Parse(normHttp(value))
+			if err != nil {
+				log.Fatalln(err.Error())
+			}
+			return valurl.Hostname() == u.Hostname()
+		})
+
+		if contains {
 			return &server.Uid
 		}
 	}
@@ -113,33 +129,35 @@ func (c *Cluster) BeginWatchman() {
 func (c *Cluster) checkServers() {
 	log.Println("Checking server status...")
 	wg := sync.WaitGroup{}
-	for _, server := range c.servers {
+	for i := range c.servers {
 		wg.Add(1)
-		go checkServer(server, &wg)
+		go checkServer(&c.servers[i], &wg)
 	}
 	wg.Wait()
 }
 
-func checkServer(server Server, wg *sync.WaitGroup) {
+func checkServer(server *Server, wg *sync.WaitGroup) {
 	defer wg.Done()
-
-	server.Mut.Lock()
-	defer server.Mut.Unlock()
 
 	if server.Online && server.Valid {
 		return
 	}
 
-	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s/info", server.Addresses[0]), nil)
+	serverhost := normHttp(server.Addresses[0])
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/info", serverhost), nil)
 
 	resp, err := http.DefaultClient.Do(req)
 
 	if err != nil {
+		log.Printf("Error: %s", err)
+		log.Printf("Setting server %s to disconnected state", server.Uid)
 		server.Online = false
 		return
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		log.Printf("Response status: %d", resp.StatusCode)
+		log.Printf("Server %s invalid", server.Uid)
 		server.Valid = false
 		return
 	}
@@ -159,21 +177,20 @@ func checkServer(server Server, wg *sync.WaitGroup) {
 
 		req, _ := http.NewRequest(p.Action, fmt.Sprintf("http://%s%s", server.Addresses[0], p.Endpoint), strings.NewReader(p.Content))
 		resp, err := http.DefaultClient.Do(req)
-		checkResponse(&server, resp, err)
+		checkResponse(server, resp, err)
 	}
 }
 
 func checkResponse(server *Server, resp *http.Response, err error) {
-	server.Mut.Lock()
-	defer server.Mut.Unlock()
-
 	if err != nil {
-		log.Printf("Server %s disconnected", server.Uid)
+		log.Printf("Error: %v", err)
+		log.Printf("Setting server %s to disconnected state", server.Uid)
 		server.Online = false
 		return
 	}
 
 	if (resp.StatusCode >= http.StatusBadRequest && resp.StatusCode < http.StatusInternalServerError) || resp.StatusCode != http.StatusNotImplemented {
+		log.Printf("Response status: %d", resp.StatusCode)
 		log.Printf("Server %s invalid", server.Uid)
 		server.Valid = false
 		return
@@ -189,6 +206,14 @@ func checkResponse(server *Server, resp *http.Response, err error) {
 
 func hasJsonBody(req *http.Request) bool {
 	return req.Header.Get("Content-Type") == "application/json"
+}
+
+func normHttp(url string) string {
+	if !strings.HasPrefix(url, "http://") || !strings.HasPrefix(url, "https://") {
+		return "http://" + url
+	}
+
+	return url
 }
 
 func NewCluster(serverUrls [][]string) (Cluster, error) {
