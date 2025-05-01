@@ -13,9 +13,8 @@
     ```
     En donde `<archivo de servidores>` es el archivo creado con la lista de servidores, y `<puerto>` es el puerto en el que el middleware escuchará peticiones
 
-# Notas
-1. El middleware al iniciar y cada 30 segundos verifica el estado de los servidores enviando una solicitud http GET al endpoint `/info` y esperando un `200 OK`. De momento no hace validación del contenido obtenido, los servidores deben tener este endpoint y retornar un `200 OK` para ser considerados válidos y en línea.
-2. Si un servidor no está registrado, pero intenta enviar una solicitud al middleware, al menos que sea `GET /info` o `PING` este recibirá un `401 Unauthorized`.
-3. En el archivo de servidores tienen que estar registrados todos los servidores del cluster, tanto los que envían las solicitudes como los que lo reciben, el middleware puede detectar el servidor que envió la solicitud mediante el host de origen o la cabecera `X-Middleware-Sent-By`, los servidores no tienen que enviar esta cabecera a menos que sepan que la solicitud pasará por otros servidores que potencialmente reescriban el host de origen y este no esté registrado en el middleware. También pueden utilizar esta cabecera para saber qué servidor envió la actualización.
-4. El middleware enviará las solicitudes con la cabecera `User-Agent` con el valor `middleware`, los servidores deben verificar que las peticiones no contengan este `User-Agent` para así poder reenviar la solicitud recibida al middleware
-
+# Cómo comunicarse con el?
+El protocolo de comunicación está basado en websockest y json, para saber sobre este, se deben ver los siguientes documentos en orden:
+1. [Introducción](./protocol/basis.md)
+2. [Obtener el Último estado](./protocol/get-latest.md)
+3. [Notificar cambios](./protocol/actions.md)
