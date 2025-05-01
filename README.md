@@ -28,4 +28,5 @@
 El protocolo de comunicación está basado en websockest y json, para saber sobre este, se deben ver los siguientes documentos en orden:
 1. [Introducción](./protocol/basis.md)
 2. [Obtener el Último estado](./protocol/get-latest.md)
+2. [Obtener estado del nodo](./protocol/get-status.md)
 3. [Notificar cambios](./protocol/actions.md)
