@@ -7,6 +7,7 @@ const (
 	ErrnoUnknown
 	ErrnoNotAllowed
 	ErrnoInvalidArgs
+	ErrnoInvalidProtocolVersion
 )
 
 type Errt int
@@ -19,6 +20,16 @@ func (e Err) Error() string {
 	switch e.errno {
 	case ErrnoNoServerRegistered:
 		return "No server registered on the config"
+	case ErrnoInvalidField:
+		return "Invalid field"
+	case ErrnoInvalidFormat:
+		return "Invalid format"
+	case ErrnoNotAllowed:
+		return "Not allowed"
+	case ErrnoInvalidArgs:
+		return "Invalid arguments"
+	case ErrnoInvalidProtocolVersion:
+		return "Invalid protocol version"
 	default:
 		return "Unknown error"
 	}

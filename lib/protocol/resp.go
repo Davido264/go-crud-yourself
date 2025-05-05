@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"encoding/json"
+	"log"
 
 	"github.com/Davido264/go-crud-yourself/lib/errs"
 )
@@ -11,6 +12,8 @@ const (
 	errnoInvalidFormatStr string = "ERRNO_INVALID_FORMAT"
 	errnoNotAllowedStr    string = "ERRNO_NOT_ALLOWED"
 	errnoInvalidArgsStr   string = "ERRNO_INVALID_ARGS"
+	errnoUnknownStr      string = "ERRNO_UNKNOWN"
+	errnoInvalidProtocolVersionStr string = "ERRNO_INVALID_PROTOCOL_VERSION"
 )
 
 type Response interface {
@@ -39,6 +42,8 @@ func (e errno) MarshallJSON() ([]byte, error) {
 		s = errnoNotAllowedStr
 	case errs.ErrnoInvalidArgs:
 		s = errnoInvalidArgsStr
+	case errs.ErrnoInvalidProtocolVersion:
+		s = errnoInvalidProtocolVersionStr
 	default:
 		s = ""
 	}
@@ -51,5 +56,44 @@ func ErrnoOf(err error) errno {
 		return errno(errs.ErrnoInvalidFormat)
 	}
 
+	switch {
+	case errs.Is(err, errs.ErrnoInvalidField):
+		return errno(errs.ErrnoInvalidField)
+	case errs.Is(err, errs.ErrnoInvalidFormat):
+		return errno(errs.ErrnoInvalidFormat)
+	case errs.Is(err, errs.ErrnoNotAllowed):
+		return errno(errs.ErrnoNotAllowed)
+	case errs.Is(err, errs.ErrnoInvalidArgs):
+		return errno(errs.ErrnoInvalidArgs)
+	case errs.Is(err, errs.ErrnoInvalidProtocolVersion):
+		return errno(errs.ErrnoInvalidProtocolVersion)
+	}
+
 	return errno(errs.ErrnoUnknown)
+}
+
+func Ok(protocolVersion int, data map[string]any) []byte {
+	resp, err := json.Marshal(SuccessResponse{
+		Version: protocolVersion,
+		Data:    data,
+	})
+
+	if err != nil {
+		log.Panic(err)
+	}
+
+	return resp
+}
+
+func Err(protocolVersion int, err error) []byte {
+	resp, err := json.Marshal(ErrorResponse{
+		Version: protocolVersion,
+		Errno:   ErrnoOf(err),
+	})
+
+	if err != nil {
+		log.Panic(err)
+	}
+
+	return resp
 }

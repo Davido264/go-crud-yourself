@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"log"
+	"sync"
 
 	"github.com/Davido264/go-crud-yourself/lib/assert"
 	"github.com/Davido264/go-crud-yourself/lib/event"
@@ -25,7 +26,11 @@ func (s *Server) DisplayName() string {
 }
 
 func (s *Server) Disconnect() {
-	assert.Assert(s.C != nil)
+
+	if s.C == nil {
+		log.Printf("[%v] Already disconnected\n", s.DisplayName())
+		return
+	}
 
 	log.Printf("[%v] Closing connection\n", s.DisplayName())
 	err := s.C.Conn.Close()
@@ -42,10 +47,22 @@ func (s *Server) Disconnect() {
 	s.C = nil
 }
 
-func (s *Server) Listen() {
+func (s *Server) ListenAndServe() {
 	assert.Assert(s.C != nil)
 
 	defer s.Disconnect()
+
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+
+	go s.listen(&wg)
+	go s.serve(&wg)
+
+	wg.Wait()
+}
+
+func (s *Server) listen(wg *sync.WaitGroup) {
+	defer wg.Done()
 
 	log.Printf("[%v] Listening\n", s.DisplayName())
 
@@ -55,6 +72,7 @@ func (s *Server) Listen() {
 	}
 
 	for {
+		log.Printf("[%v] Received message from client\n", s.DisplayName())
 		var msg protocol.Msg
 		err := s.C.Conn.ReadJSON(&msg)
 		if err != nil {
@@ -63,39 +81,35 @@ func (s *Server) Listen() {
 				break
 			}
 
-			err = s.C.Err(err)
-			if err != nil {
-				log.Printf("[%v] Error sending response: %v", s.DisplayName(), err)
-				if !s.C.IsClosed(err) {
-					break
-				}
-			}
+			s.C.Clientch <- protocol.Err(s.C.protocolVersion, err)
 		}
 
-		msg.ClientId = s.Identifier
-		s.C.Notifch <- msg
+		err = protocol.ValidateMsg(s.C.protocolVersion, msg)
+		if err != nil {
+			log.Printf("[%v] Error validating message: %v\n", s.DisplayName(), err)
+			s.C.Clientch <- protocol.Err(s.C.protocolVersion, err)
+			continue
+		}
 
 		s.C.Eventch <- event.Event{
 			Type:   event.EServerMsg,
 			Server: s.Identifier,
 		}
 
-		err = s.C.Ok(nil)
-		if err != nil {
-			log.Printf("[%v] Error on websocket connection: %v\n", s.DisplayName(), err)
-			if !s.C.IsClosed(err) {
-				break
-			}
+		if protocol.ShouldPropagate(msg) {
+			s.C.Notifch <- msg
 		}
+
+		s.C.Clientch <- protocol.ProcessMsg(msg)
 	}
 }
 
-func (s *Server) Serve() {
-	assert.Assert(s.C != nil)
+func (s *Server) serve(wg *sync.WaitGroup) {
+	defer wg.Done()
 
-	defer s.Disconnect()
-
+	log.Printf("[%v] Serving\n", s.DisplayName())
 	for msg := range s.C.Clientch {
+		log.Printf("[%v] Sending message to client\n", s.DisplayName())
 		s.C.SetWriteDeadline()
 		err := s.C.Conn.WriteMessage(websocket.TextMessage, msg)
 

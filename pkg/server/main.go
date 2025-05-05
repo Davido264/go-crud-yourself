@@ -44,6 +44,15 @@ func main() {
 	}
 
 	http.HandleFunc("GET /service-integration", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Service integration request from %v\n", r.RemoteAddr)
+		id := c.FindRegistered(r.RemoteAddr)
+
+		if id == "" {
+			log.Printf("No server registered for %v\n", r.RemoteAddr)
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
 		conn, err := upgrader.Upgrade(w, r, nil)
 
 		if err != nil {
@@ -52,11 +61,7 @@ func main() {
 			return
 		}
 
-		err = c.Connect(r.RemoteAddr, conn)
-		if err != nil {
-			log.Printf("Error %v\n", err)
-			return
-		}
+		c.Connect(id, conn)
 	})
 
 	http.HandleFunc("GET /adm", func(w http.ResponseWriter, r *http.Request) {

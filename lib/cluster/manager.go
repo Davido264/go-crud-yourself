@@ -15,7 +15,11 @@ type ManagerNode struct {
 }
 
 func (m *ManagerNode) Disconnect() {
-	assert.Assert(m.C != nil)
+
+	if m.C == nil {
+		log.Printf("%v Already disconnected\n", mtag)
+		return
+	}
 
 	log.Printf("%v Closing connection\n", mtag)
 	err := m.C.Conn.Close()

@@ -61,5 +61,6 @@ Los mensajes de error que se pueden recibir son:
 - `ERRNO_INVALID_FORMAT`: Indica que el mensaje que se envió está en un formato incorrecto
 - `ERRNO_NOT_ALLOWED`: Indica que la acción no está disponible para la  entidad. Este error se obtendrá principalmente de realizar una acción que no sea `get` a `status`
 - `ERRNO_INVALID_ARGS`: Indica que los parámetros enviados no son los esperados para determinada acción
+- `ERRNO_INVALID_PROTOCOL_VERSION`: Indica que la versión del protocolo es incompatible
 
 Se incluirán más a medida que avance el desarrollo, así que se puede esperar que se agreguen más códigos de error

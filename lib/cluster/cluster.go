@@ -3,10 +3,10 @@ package cluster
 import (
 	"encoding/json"
 	"log"
+	"net/url"
 	"slices"
 
 	"github.com/Davido264/go-crud-yourself/lib/assert"
-	"github.com/Davido264/go-crud-yourself/lib/errs"
 	"github.com/Davido264/go-crud-yourself/lib/event"
 	"github.com/Davido264/go-crud-yourself/lib/protocol"
 	"github.com/google/uuid"
@@ -23,24 +23,18 @@ type Cluster struct {
 	eventch         chan event.Event
 }
 
-func (c *Cluster) Connect(addr string, conn *websocket.Conn) error {
-	id := c.findRegistered(addr)
-
-	if id == "" {
-		return errs.New(errs.ErrnoNoServerRegistered)
-	}
-
+func (c *Cluster) Connect(id string, conn *websocket.Conn) {
 	server := c.servers[id]
-	server.C = InitConn(conn, c.protocolVersion)
+	server.C = InitConn(conn, c.protocolVersion, c.notifych, c.eventch)
 
-	go server.Listen()
-	go server.Serve()
-	return nil
+	go server.ListenAndServe()
+
+	server.C.Clientch <- protocol.Ok(server.C.protocolVersion, map[string]any{"clientId": server.Identifier})
 }
 
 func (c *Cluster) AddManager(conn *websocket.Conn) {
 	nManager := ManagerNode{
-		C: InitConn(conn, c.protocolVersion),
+		C: InitConn(conn, c.protocolVersion, c.notifych, c.eventch),
 	}
 
 	c.managers = append(c.managers, nManager)
@@ -71,6 +65,10 @@ func (c *Cluster) NotifiyServers(msg protocol.Msg) {
 			continue
 		}
 
+		if c.servers[i].C == nil {
+			log.Printf("%v Server %v is not connected. Skiping...\n", clustermtag, c.servers[i].DisplayName())
+			continue
+		}
 		c.servers[i].C.Clientch <- encmsg
 	}
 }
@@ -87,9 +85,11 @@ func (c *Cluster) NotifyManagers(ev event.Event) {
 
 func (c *Cluster) IsValidMsg(msg protocol.Msg) bool { return true }
 
-func (c *Cluster) findRegistered(addr string) string {
+func (c *Cluster) FindRegistered(addr string) string {
+	realAddr := url.URL{Host: addr}
+
 	for i, server := range c.servers {
-		if slices.Contains(server.Addr, addr) {
+		if slices.Contains(server.Addr, realAddr.Hostname()) {
 			return i
 		}
 	}

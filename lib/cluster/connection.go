@@ -33,27 +33,13 @@ func (c *Conn) SetWriteDeadline() {
 	c.Conn.SetWriteDeadline(time.Now().Add(websocketTimeout))
 }
 
-func (c *Conn) Ok(data map[string]any) error {
-	c.SetWriteDeadline()
-	return c.Conn.WriteJSON(protocol.SuccessResponse{
-		Version: c.protocolVersion,
-		Data:    data,
-	})
-}
-
-func (c *Conn) Err(err error) error {
-	c.SetWriteDeadline()
-	return c.Conn.WriteJSON(protocol.ErrorResponse{
-		Version: c.protocolVersion,
-		Errno:   protocol.ErrnoOf(err),
-	})
-}
-
-func InitConn(conn *websocket.Conn, version int) *Conn {
+func InitConn(conn *websocket.Conn, version int, notifch chan<- protocol.Msg, eventch chan<- event.Event) *Conn {
 	c := &Conn{
 		protocolVersion: version,
 		Conn:            conn,
 		Clientch:        make(chan []byte),
+		Notifch:         notifch,
+		Eventch:         eventch,
 	}
 
 	c.Conn.SetReadLimit(1024)

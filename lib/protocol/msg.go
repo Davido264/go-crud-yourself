@@ -25,10 +25,17 @@ const (
 	EntityTeacher
 	EntityAssigment
 	EntityTeacherCicle
+	EntityMatr
+	EntityRNote
+	EntityStatus
 
-	entityStudentStr   string = "estudiante"
-	entityTeacherStr   string = "profesor"
-	entityAssigmentStr string = "asignatura"
+	entityStudentStr      string = "estudiante"
+	entityTeacherStr      string = "profesor"
+	entityAssigmentStr    string = "asignatura"
+	entityTeacherCicleStr string = "ciclo"
+	entityMatrStr         string = "matricula"
+	entityRNoteStr        string = "rnota"
+	entityStatusStr       string = "status"
 )
 
 type Msg struct {
@@ -86,6 +93,14 @@ func (m *MsgEntity) UnmarshalJSON(b []byte) error {
 		*m = EntityTeacher
 	case entityAssigmentStr:
 		*m = EntityAssigment
+	case entityTeacherCicleStr:
+		*m = EntityTeacherCicle
+	case entityMatrStr:
+		*m = EntityMatr
+	case entityRNoteStr:
+		*m = EntityRNote
+	case entityStatusStr:
+		*m = EntityStatus
 	default:
 		return errs.New(errs.ErrnoInvalidField)
 	}
@@ -102,6 +117,14 @@ func (m MsgEntity) MarshalJSON() ([]byte, error) {
 		s = entityTeacherStr
 	case EntityAssigment:
 		s = entityAssigmentStr
+	case EntityTeacherCicle:
+		s = entityTeacherCicleStr
+	case EntityMatr:
+		s = entityMatrStr
+	case EntityRNote:
+		s = entityRNoteStr
+	case EntityStatus:
+		s = entityStatusStr
 	}
 
 	return json.Marshal(s)
