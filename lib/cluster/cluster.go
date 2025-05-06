@@ -9,6 +9,7 @@ import (
 	"github.com/Davido264/go-crud-yourself/lib/assert"
 	"github.com/Davido264/go-crud-yourself/lib/event"
 	"github.com/Davido264/go-crud-yourself/lib/protocol"
+	"github.com/Davido264/go-crud-yourself/lib/queue"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
@@ -17,9 +18,13 @@ const clustermtag = "[CLUSTER MANAGER]"
 
 type Cluster struct {
 	protocolVersion int
+
 	managers        []ManagerNode
 	servers         map[string]*Server
-	notifych        chan protocol.Msg
+
+	notifych        chan protocol.TimedMsg
+	msgqueue        queue.MsgQueue
+
 	eventch         chan event.Event
 }
 
@@ -29,7 +34,7 @@ func (c *Cluster) Connect(id string, conn *websocket.Conn) {
 
 	go server.ListenAndServe()
 
-	server.C.Clientch <- protocol.Ok(server.C.protocolVersion, map[string]any{"clientId": server.Identifier})
+	log.Printf("%v Sending clientId to %v %v\n", clustermtag, server.DisplayName(), server.Identifier)
 }
 
 func (c *Cluster) AddManager(conn *websocket.Conn) {
@@ -43,6 +48,7 @@ func (c *Cluster) AddManager(conn *websocket.Conn) {
 
 func (c *Cluster) ListenNotifications() {
 	for msg := range c.notifych {
+		log.Printf("%v Received message: %v\n", clustermtag, msg)
 		c.NotifiyServers(msg)
 	}
 }
@@ -53,23 +59,29 @@ func (c *Cluster) ListenEvents() {
 	}
 }
 
-func (c *Cluster) NotifiyServers(msg protocol.Msg) {
+func (c *Cluster) NotifiyServers(tmsg protocol.TimedMsg) {
 	log.Printf("%v Notifying servers\n", clustermtag)
-	encmsg, err := json.Marshal(msg)
+	encmsg, err := json.Marshal(tmsg.Msg)
 	if err != nil {
 		log.Panic(err)
 	}
 
+	needsEnqueue := false
 	for i := range c.servers {
-		if c.servers[i].Identifier == msg.ClientId {
+		if c.servers[i].Identifier == tmsg.Msg.ClientId {
 			continue
 		}
 
 		if c.servers[i].C == nil {
 			log.Printf("%v Server %v is not connected. Skiping...\n", clustermtag, c.servers[i].DisplayName())
+			needsEnqueue = true
 			continue
 		}
 		c.servers[i].C.Clientch <- encmsg
+	}
+
+	if needsEnqueue {
+		c.msgqueue.Add(tmsg)
 	}
 }
 

@@ -16,13 +16,8 @@ type Conn struct {
 	protocolVersion int
 	Conn            *websocket.Conn
 	Clientch        chan []byte
-	Notifch         chan<- protocol.Msg
+	Notifch         chan<- protocol.TimedMsg
 	Eventch         chan<- event.Event
-}
-
-func (c *Conn) onPong(appData string) error {
-	c.Conn.SetReadDeadline(time.Now().Add(websocketTimeout))
-	return nil
 }
 
 func (c *Conn) IsClosed(err error) bool {
@@ -33,18 +28,12 @@ func (c *Conn) SetWriteDeadline() {
 	c.Conn.SetWriteDeadline(time.Now().Add(websocketTimeout))
 }
 
-func InitConn(conn *websocket.Conn, version int, notifch chan<- protocol.Msg, eventch chan<- event.Event) *Conn {
-	c := &Conn{
+func InitConn(conn *websocket.Conn, version int, notifch chan<- protocol.TimedMsg, eventch chan<- event.Event) *Conn {
+	return &Conn{
 		protocolVersion: version,
 		Conn:            conn,
 		Clientch:        make(chan []byte),
 		Notifch:         notifch,
 		Eventch:         eventch,
 	}
-
-	c.Conn.SetReadLimit(1024)
-	c.Conn.SetReadDeadline(time.Now().Add(websocketTimeout))
-	c.Conn.SetPongHandler(c.onPong)
-
-	return c
 }

@@ -3,6 +3,7 @@ package cluster
 import (
 	"log"
 	"sync"
+	"time"
 
 	"github.com/Davido264/go-crud-yourself/lib/assert"
 	"github.com/Davido264/go-crud-yourself/lib/event"
@@ -77,11 +78,7 @@ func (s *Server) listen(wg *sync.WaitGroup) {
 		err := s.C.Conn.ReadJSON(&msg)
 		if err != nil {
 			log.Printf("[%v] Error on websocket connection: %v\n", s.DisplayName(), err)
-			if !s.C.IsClosed(err) {
-				break
-			}
-
-			s.C.Clientch <- protocol.Err(s.C.protocolVersion, err)
+			break
 		}
 
 		err = protocol.ValidateMsg(s.C.protocolVersion, msg)
@@ -91,16 +88,17 @@ func (s *Server) listen(wg *sync.WaitGroup) {
 			continue
 		}
 
+		timed := protocol.TimedMsg{Msg: msg, LastTimeStamp: time.Now().UTC().UnixMilli()}
 		s.C.Eventch <- event.Event{
 			Type:   event.EServerMsg,
 			Server: s.Identifier,
 		}
 
-		if protocol.ShouldPropagate(msg) {
-			s.C.Notifch <- msg
+		if protocol.ShouldPropagate(timed) {
+			s.C.Notifch <- timed
 		}
 
-		s.C.Clientch <- protocol.ProcessMsg(msg)
+		s.C.Clientch <- protocol.ProcessMsg(timed)
 	}
 }
 

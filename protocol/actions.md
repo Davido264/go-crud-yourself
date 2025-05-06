@@ -14,7 +14,7 @@ Una vez conectado con el middleware, los clientes comunicarán sus cambios con e
 }
 ```
 
-Dentro de `args` se encontrará la información modificada o eliminada, pudiendo ser `{ id: "identificador global" }`, o la entidad modificada.
+Dentro de `args` se encontrará la información modificada o eliminada, pudiendo ser `{ id_: "identificador global" }`, o la entidad modificada.
 
 La respuesta de esta petición será:
 

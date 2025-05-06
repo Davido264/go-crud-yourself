@@ -24,7 +24,7 @@ const (
 	EntityStudent MsgEntity = iota
 	EntityTeacher
 	EntityAssigment
-	EntityTeacherCicle
+	EntityCycle
 	EntityMatr
 	EntityRNote
 	EntityStatus
@@ -32,7 +32,7 @@ const (
 	entityStudentStr      string = "estudiante"
 	entityTeacherStr      string = "profesor"
 	entityAssigmentStr    string = "asignatura"
-	entityTeacherCicleStr string = "ciclo"
+	entityTeacherCycleStr string = "ciclo"
 	entityMatrStr         string = "matricula"
 	entityRNoteStr        string = "rnota"
 	entityStatusStr       string = "status"
@@ -93,8 +93,8 @@ func (m *MsgEntity) UnmarshalJSON(b []byte) error {
 		*m = EntityTeacher
 	case entityAssigmentStr:
 		*m = EntityAssigment
-	case entityTeacherCicleStr:
-		*m = EntityTeacherCicle
+	case entityTeacherCycleStr:
+		*m = EntityCycle
 	case entityMatrStr:
 		*m = EntityMatr
 	case entityRNoteStr:
@@ -117,8 +117,8 @@ func (m MsgEntity) MarshalJSON() ([]byte, error) {
 		s = entityTeacherStr
 	case EntityAssigment:
 		s = entityAssigmentStr
-	case EntityTeacherCicle:
-		s = entityTeacherCicleStr
+	case EntityCycle:
+		s = entityTeacherCycleStr
 	case EntityMatr:
 		s = entityMatrStr
 	case EntityRNote:
@@ -129,3 +129,9 @@ func (m MsgEntity) MarshalJSON() ([]byte, error) {
 
 	return json.Marshal(s)
 }
+
+type TimedMsg struct {
+	Msg Msg
+	LastTimeStamp int64
+}
+
