@@ -96,7 +96,7 @@ func (s *Server) listen(wg *sync.WaitGroup) {
 
 		if msg.Action == protocol.ActionGet {
 			s.C.Notifch <- msg
-			return
+			continue
 		}
 
 		s.C.Clientch <- protocol.Ok(msg.Version, map[string]any{
