@@ -33,7 +33,7 @@ const (
 	entityStudentStr      string = "estudiante"
 	entityTeacherStr      string = "profesor"
 	entityAssigmentStr    string = "asignatura"
-	entityAsignationStr      string = "asignacion"
+	entityAsignationStr   string = "asignacion"
 	entityTeacherCycleStr string = "ciclo"
 	entityMatrStr         string = "matricula"
 	entityRNoteStr        string = "rnota"

@@ -223,7 +223,7 @@ func validateAssigment(entity map[string]any) bool {
 		return false
 	}
 
-	if _, ok := entity[fieldIdTCA].(string); !ok {
+	if _, ok := entity[fieldIdAssigments].(string); !ok {
 		return false
 	}
 
