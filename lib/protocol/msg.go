@@ -24,6 +24,7 @@ const (
 	EntityStudent MsgEntity = iota
 	EntityTeacher
 	EntityAssigment
+	EntityAsignation
 	EntityCycle
 	EntityMatr
 	EntityRNote
@@ -32,6 +33,7 @@ const (
 	entityStudentStr      string = "estudiante"
 	entityTeacherStr      string = "profesor"
 	entityAssigmentStr    string = "asignatura"
+	entityAsignationStr      string = "asignacion"
 	entityTeacherCycleStr string = "ciclo"
 	entityMatrStr         string = "matricula"
 	entityRNoteStr        string = "rnota"
@@ -39,12 +41,12 @@ const (
 )
 
 type Msg struct {
-	Version       int       `json:"version"`
-	Action        MsgAction `json:"action"`
-	Entity        MsgEntity `json:"entity"`
+	Version       int            `json:"version"`
+	Action        MsgAction      `json:"action"`
+	Entity        MsgEntity      `json:"entity"`
 	Args          map[string]any `json:"args"`
-	ClientId      string    `json:"-"`
-	LastTimeStamp int64		`json:"-"`
+	ClientId      string         `json:"-"`
+	LastTimeStamp int64          `json:"-"`
 }
 
 func (m *MsgAction) UnmarshalJSON(b []byte) error {
@@ -102,6 +104,8 @@ func (m *MsgEntity) UnmarshalJSON(b []byte) error {
 		*m = EntityRNote
 	case entityStatusStr:
 		*m = EntityStatus
+	case entityAsignationStr:
+		*m = EntityAsignation
 	default:
 		return errs.New(errs.ErrnoInvalidField)
 	}
@@ -126,6 +130,8 @@ func (m MsgEntity) MarshalJSON() ([]byte, error) {
 		s = entityRNoteStr
 	case EntityStatus:
 		s = entityStatusStr
+	case EntityAsignation:
+		s = entityAsignationStr
 	}
 
 	return json.Marshal(s)

@@ -20,7 +20,7 @@ const (
 	fieldNote1         = "nota1"
 	fieldNote2         = "nota2"
 	fieldSup           = "sup"
-	fieldLastTimeStamp = "lastTimeStamp"
+	FieldLastTimeStamp = "lastTimeStamp"
 )
 
 func ValidateMsg(protocolVersion int, msg Msg) error {
@@ -44,6 +44,10 @@ func ValidateMsg(protocolVersion int, msg Msg) error {
 		return errs.New(errs.ErrnoInvalidArgs)
 	}
 
+	if msg.Action == ActionGet && isNaN(msg.Args[FieldLastTimeStamp]) {
+		return errs.New(errs.ErrnoInvalidArgs)
+	}
+
 	switch msg.Entity {
 	case EntityStudent:
 		if !validateStudent(msg.Args) {
@@ -55,6 +59,10 @@ func ValidateMsg(protocolVersion int, msg Msg) error {
 		}
 	case EntityAssigment:
 		if !validateAssigment(msg.Args) {
+			return errs.New(errs.ErrnoInvalidArgs)
+		}
+	case EntityAsignation:
+		if !validateAsignation(msg.Args) {
 			return errs.New(errs.ErrnoInvalidArgs)
 		}
 	case EntityCycle:
@@ -76,24 +84,6 @@ func ValidateMsg(protocolVersion int, msg Msg) error {
 
 func ShouldPropagate(msg Msg) bool {
 	return msg.Action != ActionGet
-}
-
-func ProcessMsg(msg Msg) []byte {
-	lastTimeStamp := msg.LastTimeStamp
-
-	if msg.Action == ActionGet {
-		// get entity
-
-		return Ok(msg.Version, map[string]any{
-			fieldLastTimeStamp: lastTimeStamp,
-		})
-	}
-
-	// store entity
-
-	return Ok(msg.Version, map[string]any{
-		fieldLastTimeStamp: lastTimeStamp,
-	})
 }
 
 func isNaN(a any) bool {
@@ -223,7 +213,7 @@ func validateCycle(entity map[string]any) bool {
 
 func validateAssigment(entity map[string]any) bool {
 	if entity[fieldId] == nil ||
-		entity[fieldIdTCA] == nil ||
+		entity[fieldIdAssigments] == nil ||
 		entity[fieldAssigment] == nil ||
 		entity[fieldVersion] == nil {
 		return false
@@ -238,6 +228,43 @@ func validateAssigment(entity map[string]any) bool {
 	}
 
 	if _, ok := entity[fieldAssigment].(string); !ok {
+		return false
+	}
+
+	if isNaN(entity[fieldVersion]) {
+		return false
+	}
+
+	return true
+}
+
+func validateAsignation(entity map[string]any) bool {
+	if entity[fieldId] == nil ||
+		entity[fieldIdTCA] == nil ||
+		entity[fieldIdTeacher] == nil ||
+		entity[fieldIdAssigments] == nil ||
+		entity[fieldIdCycles] == nil ||
+		entity[fieldVersion] == nil {
+		return false
+	}
+
+	if _, ok := entity[fieldId].(string); !ok {
+		return false
+	}
+
+	if _, ok := entity[fieldIdTCA].(string); !ok {
+		return false
+	}
+
+	if _, ok := entity[fieldIdTeacher].(string); !ok {
+		return false
+	}
+
+	if _, ok := entity[fieldIdAssigments].(string); !ok {
+		return false
+	}
+
+	if _, ok := entity[fieldIdCycles].(string); !ok {
 		return false
 	}
 

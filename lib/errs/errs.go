@@ -8,6 +8,7 @@ const (
 	ErrnoNotAllowed
 	ErrnoInvalidArgs
 	ErrnoInvalidProtocolVersion
+	ErrnoMissingData
 )
 
 type Errt int
@@ -30,6 +31,8 @@ func (e Err) Error() string {
 		return "Invalid arguments"
 	case ErrnoInvalidProtocolVersion:
 		return "Invalid protocol version"
+	case ErrnoMissingData:
+		return "No data matching query parameters"
 	default:
 		return "Unknown error"
 	}

@@ -12,10 +12,10 @@ import (
 )
 
 type Server struct {
-	Identifier string   `json:"-"`
-	Alias      string   `json:"alias"`
-	Addr       []string `json:"address"`
-	C          *Conn    `json:"-"`
+	Identifier     string   `json:"-"`
+	Alias          string   `json:"alias"`
+	Addr           []string `json:"address"`
+	C              *Conn    `json:"-"`
 }
 
 func (s *Server) DisplayName() string {
@@ -98,15 +98,13 @@ func (s *Server) listen(wg *sync.WaitGroup) {
 			s.C.Notifch <- msg
 		}
 
-
 		if msg.Action == protocol.ActionGet {
-		// get entity
-		
+
 		}
 
-	// store entity
-
-		s.C.Clientch <- protocol.ProcessMsg(msg)
+		s.C.Clientch <- protocol.Ok(msg.Version, map[string]any{
+			protocol.FieldLastTimeStamp: msg.LastTimeStamp,
+		})
 	}
 }
 

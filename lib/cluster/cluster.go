@@ -19,13 +19,13 @@ const clustermtag = "[CLUSTER MANAGER]"
 type Cluster struct {
 	protocolVersion int
 
-	managers        []ManagerNode
-	servers         map[string]*Server
+	managers []ManagerNode
+	servers  map[string]*Server
 
-	notifych        chan protocol.Msg
-	msgqueue        queue.MsgQueue
+	notifych chan protocol.Msg
+	msgqueue queue.MsgQueue
 
-	eventch         chan event.Event
+	eventch chan event.Event
 }
 
 func (c *Cluster) ConnectServer(id string, conn *websocket.Conn) {
@@ -46,7 +46,22 @@ func (c *Cluster) AddManager(conn *websocket.Conn) {
 
 func (c *Cluster) ListenNotifications() {
 	for msg := range c.notifych {
-		log.Printf("%v Received message: %v\n", clustermtag, msg)
+		if msg.Action == protocol.ActionGet {
+			log.Printf("%v Procesing request: %v\n", clustermtag, msg)
+
+			data := make(map[string]any)
+			switch msg.Entity {
+			case protocol.EntityStatus:
+				data[protocol.FieldLastTimeStamp] = c.msgqueue.LastTimeStamp()
+				// default:
+				// 	c.msgqueue.
+			}
+
+			// c.servers[msg.ClientId].C.Clientch <-
+			continue
+		}
+
+		log.Printf("%v Propagating message: %v\n", clustermtag, msg)
 		c.NotifiyServers(msg)
 	}
 }
@@ -64,7 +79,7 @@ func (c *Cluster) NotifiyServers(msg protocol.Msg) {
 		log.Panic(err)
 	}
 
-	needsEnqueue := false
+	missingCount := 0
 	for i := range c.servers {
 		if c.servers[i].Identifier == msg.ClientId {
 			continue
@@ -72,14 +87,14 @@ func (c *Cluster) NotifiyServers(msg protocol.Msg) {
 
 		if c.servers[i].C == nil {
 			log.Printf("%v Server %v is not connected. Skiping...\n", clustermtag, c.servers[i].DisplayName())
-			needsEnqueue = true
+			missingCount++
 			continue
 		}
 		c.servers[i].C.Clientch <- encmsg
 	}
 
-	if needsEnqueue {
-		c.msgqueue.Add(msg)
+	if missingCount != 0 {
+		c.msgqueue.Add(msg, missingCount)
 	}
 }
 

@@ -14,6 +14,7 @@ const (
 	errnoInvalidArgsStr   string = "ERRNO_INVALID_ARGS"
 	errnoUnknownStr      string = "ERRNO_UNKNOWN"
 	errnoInvalidProtocolVersionStr string = "ERRNO_INVALID_PROTOCOL_VERSION"
+	errnoMissingDataStr string = "ERRNO_MISSING_DATA_FOR_QUERY"
 )
 
 type Response interface {
@@ -44,6 +45,8 @@ func (e errno) MarshalJSON() ([]byte, error) {
 		s = errnoInvalidArgsStr
 	case errs.ErrnoInvalidProtocolVersion:
 		s = errnoInvalidProtocolVersionStr
+	case errs.ErrnoMissingData:
+		s = errnoMissingDataStr
 	default:
 		s = ""
 	}
@@ -67,6 +70,8 @@ func ErrnoOf(err error) errno {
 		return errno(errs.ErrnoInvalidArgs)
 	case errs.Is(err, errs.ErrnoInvalidProtocolVersion):
 		return errno(errs.ErrnoInvalidProtocolVersion)
+	case errs.Is(err, errs.ErrnoMissingData):
+		return errno(errs.ErrnoMissingData)
 	}
 
 	return errno(errs.ErrnoUnknown)
