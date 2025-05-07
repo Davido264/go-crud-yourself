@@ -65,7 +65,7 @@ func (c *Cluster) ListenNotifications() {
 				data["actions"] = actions
 			}
 
-			if c.servers[msg.ClientId].C != nil {
+			if c.servers[msg.ClientId] != nil && c.servers[msg.ClientId].C != nil {
 				c.servers[msg.ClientId].C.Clientch <- protocol.Ok(c.protocolVersion, data)
 			}
 
