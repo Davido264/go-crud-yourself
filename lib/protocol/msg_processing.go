@@ -44,7 +44,7 @@ func ValidateMsg(protocolVersion int, msg Msg) error {
 		return errs.New(errs.ErrnoInvalidArgs)
 	}
 
-	if msg.Action == ActionGet && isNaN(msg.Args[FieldLastTimeStamp]) {
+	if msg.Action == ActionGet && msg.Entity != EntityStatus && isNaN(msg.Args[FieldLastTimeStamp]) {
 		return errs.New(errs.ErrnoInvalidArgs)
 	}
 

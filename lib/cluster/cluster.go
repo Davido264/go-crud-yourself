@@ -46,6 +46,7 @@ func (c *Cluster) AddManager(conn *websocket.Conn) {
 
 func (c *Cluster) ListenNotifications() {
 	for msg := range c.notifych {
+
 		if msg.Action == protocol.ActionGet {
 			log.Printf("%v Procesing request: %v\n", clustermtag, msg)
 
@@ -53,11 +54,18 @@ func (c *Cluster) ListenNotifications() {
 			switch msg.Entity {
 			case protocol.EntityStatus:
 				data[protocol.FieldLastTimeStamp] = c.msgqueue.LastTimeStamp()
-				// default:
-				// 	c.msgqueue.
+			default:
+				data[protocol.FieldLastTimeStamp] = c.msgqueue.LastTimeStamp()
+				actions, err := c.msgqueue.PopSince(data[protocol.FieldLastTimeStamp], msg.Entity)
+				if err != nil {
+					log.Printf("%v Error: %v\n", clustermtag, err)
+					c.servers[msg.ClientId].C.Clientch <- protocol.Err(c.protocolVersion, err)
+					continue
+				}
+				data["actions"] = actions
 			}
 
-			// c.servers[msg.ClientId].C.Clientch <-
+			c.servers[msg.ClientId].C.Clientch <- protocol.Ok(c.protocolVersion, data)
 			continue
 		}
 

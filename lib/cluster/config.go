@@ -20,6 +20,7 @@ type ClusterConfig struct {
 	Servers         []Server `json:"servers"`
 	ChannelSize     int      `json:"chsize"`
 	ProtocolVersion int      `json:"protocolVersion"`
+	web   			string   `json:"webPath"`
 }
 
 func defaultForErr(err error) ClusterConfig {
