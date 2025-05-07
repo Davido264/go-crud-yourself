@@ -16,7 +16,7 @@ type Conn struct {
 	protocolVersion int
 	Conn            *websocket.Conn
 	Clientch        chan []byte
-	Notifch         chan<- protocol.TimedMsg
+	Notifch         chan<- protocol.Msg
 	Eventch         chan<- event.Event
 }
 
@@ -28,7 +28,7 @@ func (c *Conn) SetWriteDeadline() {
 	c.Conn.SetWriteDeadline(time.Now().Add(websocketTimeout))
 }
 
-func InitConn(conn *websocket.Conn, version int, notifch chan<- protocol.TimedMsg, eventch chan<- event.Event) *Conn {
+func InitConn(conn *websocket.Conn, version int, notifch chan<- protocol.Msg, eventch chan<- event.Event) *Conn {
 	return &Conn{
 		protocolVersion: version,
 		Conn:            conn,

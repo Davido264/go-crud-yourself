@@ -61,7 +61,7 @@ func main() {
 			return
 		}
 
-		c.Connect(id, conn)
+		c.ConnectServer(id, conn)
 	})
 
 	http.HandleFunc("GET /adm", func(w http.ResponseWriter, r *http.Request) {

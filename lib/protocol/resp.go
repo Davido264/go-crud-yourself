@@ -31,7 +31,7 @@ type ErrorResponse struct {
 	Errno   errno `json:"errno"`
 }
 
-func (e errno) MarshallJSON() ([]byte, error) {
+func (e errno) MarshalJSON() ([]byte, error) {
 	var s string
 	switch errs.Errt(e) {
 	case errs.ErrnoInvalidField:

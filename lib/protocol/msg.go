@@ -39,11 +39,12 @@ const (
 )
 
 type Msg struct {
-	Version  int            `json:"version"`
-	ClientId string         `json:"clientId"`
-	Action   MsgAction      `json:"action"`
-	Entity   MsgEntity      `json:"entity"`
-	Args     map[string]any `json:"args"`
+	Version       int       `json:"version"`
+	Action        MsgAction `json:"action"`
+	Entity        MsgEntity `json:"entity"`
+	Args          map[string]any `json:"args"`
+	ClientId      string    `json:"-"`
+	LastTimeStamp int64		`json:"-"`
 }
 
 func (m *MsgAction) UnmarshalJSON(b []byte) error {
@@ -129,9 +130,3 @@ func (m MsgEntity) MarshalJSON() ([]byte, error) {
 
 	return json.Marshal(s)
 }
-
-type TimedMsg struct {
-	Msg Msg
-	LastTimeStamp int64
-}
-

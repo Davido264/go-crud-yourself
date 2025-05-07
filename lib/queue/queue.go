@@ -6,15 +6,15 @@ import (
 
 type MsgQueue struct {
 	lastTimeStamp int64
-	queue         []protocol.TimedMsg
+	queue         []protocol.Msg
 }
 
-func (q *MsgQueue) Add(msg protocol.TimedMsg) {
+func (q *MsgQueue) Add(msg protocol.Msg) {
 	q.lastTimeStamp = msg.LastTimeStamp
 	q.queue = append(q.queue, msg)
 }
 
-func (q *MsgQueue) Pop() *protocol.TimedMsg {
+func (q *MsgQueue) Pop() *protocol.Msg {
 	if len(q.queue) == 0 {
 		return nil
 	}

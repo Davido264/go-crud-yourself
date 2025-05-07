@@ -83,22 +83,30 @@ func (s *Server) listen(wg *sync.WaitGroup) {
 
 		err = protocol.ValidateMsg(s.C.protocolVersion, msg)
 		if err != nil {
-			log.Printf("[%v] Error validating message: %v\n", s.DisplayName(), err)
+			log.Printf("[%v] Invalid message: %v\n", s.DisplayName(), err)
 			s.C.Clientch <- protocol.Err(s.C.protocolVersion, err)
 			continue
 		}
 
-		timed := protocol.TimedMsg{Msg: msg, LastTimeStamp: time.Now().UTC().UnixMilli()}
+		msg.LastTimeStamp = time.Now().UTC().UnixMilli()
 		s.C.Eventch <- event.Event{
 			Type:   event.EServerMsg,
 			Server: s.Identifier,
 		}
 
-		if protocol.ShouldPropagate(timed) {
-			s.C.Notifch <- timed
+		if protocol.ShouldPropagate(msg) {
+			s.C.Notifch <- msg
 		}
 
-		s.C.Clientch <- protocol.ProcessMsg(timed)
+
+		if msg.Action == protocol.ActionGet {
+		// get entity
+		
+		}
+
+	// store entity
+
+		s.C.Clientch <- protocol.ProcessMsg(msg)
 	}
 }
 

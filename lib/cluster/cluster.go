@@ -22,19 +22,17 @@ type Cluster struct {
 	managers        []ManagerNode
 	servers         map[string]*Server
 
-	notifych        chan protocol.TimedMsg
+	notifych        chan protocol.Msg
 	msgqueue        queue.MsgQueue
 
 	eventch         chan event.Event
 }
 
-func (c *Cluster) Connect(id string, conn *websocket.Conn) {
+func (c *Cluster) ConnectServer(id string, conn *websocket.Conn) {
 	server := c.servers[id]
 	server.C = InitConn(conn, c.protocolVersion, c.notifych, c.eventch)
 
 	go server.ListenAndServe()
-
-	log.Printf("%v Sending clientId to %v %v\n", clustermtag, server.DisplayName(), server.Identifier)
 }
 
 func (c *Cluster) AddManager(conn *websocket.Conn) {
@@ -59,16 +57,16 @@ func (c *Cluster) ListenEvents() {
 	}
 }
 
-func (c *Cluster) NotifiyServers(tmsg protocol.TimedMsg) {
+func (c *Cluster) NotifiyServers(msg protocol.Msg) {
 	log.Printf("%v Notifying servers\n", clustermtag)
-	encmsg, err := json.Marshal(tmsg.Msg)
+	encmsg, err := json.Marshal(msg)
 	if err != nil {
 		log.Panic(err)
 	}
 
 	needsEnqueue := false
 	for i := range c.servers {
-		if c.servers[i].Identifier == tmsg.Msg.ClientId {
+		if c.servers[i].Identifier == msg.ClientId {
 			continue
 		}
 
@@ -81,7 +79,7 @@ func (c *Cluster) NotifiyServers(tmsg protocol.TimedMsg) {
 	}
 
 	if needsEnqueue {
-		c.msgqueue.Add(tmsg)
+		c.msgqueue.Add(msg)
 	}
 }
 

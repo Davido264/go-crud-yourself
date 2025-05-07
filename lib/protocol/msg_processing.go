@@ -74,13 +74,12 @@ func ValidateMsg(protocolVersion int, msg Msg) error {
 	return nil
 }
 
-func ShouldPropagate(msg TimedMsg) bool {
-	return msg.Msg.Action != ActionGet
+func ShouldPropagate(msg Msg) bool {
+	return msg.Action != ActionGet
 }
 
-func ProcessMsg(tmsg TimedMsg) []byte {
-	lastTimeStamp := tmsg.LastTimeStamp
-	msg := tmsg.Msg
+func ProcessMsg(msg Msg) []byte {
+	lastTimeStamp := msg.LastTimeStamp
 
 	if msg.Action == ActionGet {
 		// get entity
