@@ -12,10 +12,9 @@ import (
 )
 
 type Server struct {
-	Identifier     string   `json:"-"`
-	Alias          string   `json:"alias"`
-	Addr           []string `json:"address"`
-	C              *Conn    `json:"-"`
+	Identifier string `json:"token"`
+	Alias      string `json:"alias"`
+	C          *Conn  `json:"-"`
 }
 
 func (s *Server) DisplayName() string {
@@ -89,6 +88,8 @@ func (s *Server) listen(wg *sync.WaitGroup) {
 		}
 
 		msg.LastTimeStamp = time.Now().UTC().UnixMilli()
+		msg.ClientId = s.Identifier
+
 		s.C.Eventch <- event.Event{
 			Type:   event.EServerMsg,
 			Server: s.Identifier,

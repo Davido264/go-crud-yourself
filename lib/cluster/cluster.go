@@ -3,14 +3,11 @@ package cluster
 import (
 	"encoding/json"
 	"log"
-	"net/url"
-	"slices"
 
 	"github.com/Davido264/go-crud-yourself/lib/assert"
 	"github.com/Davido264/go-crud-yourself/lib/event"
 	"github.com/Davido264/go-crud-yourself/lib/protocol"
 	"github.com/Davido264/go-crud-yourself/lib/queue"
-	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -65,7 +62,7 @@ func (c *Cluster) ListenNotifications() {
 				data["actions"] = actions
 			}
 
-			if c.servers[msg.ClientId] != nil && c.servers[msg.ClientId].C != nil {
+			if c.servers[msg.ClientId].C != nil {
 				c.servers[msg.ClientId].C.Clientch <- protocol.Ok(c.protocolVersion, data)
 			}
 
@@ -119,26 +116,18 @@ func (c *Cluster) NotifyManagers(ev event.Event) {
 	}
 }
 
-func (c *Cluster) IsValidMsg(msg protocol.Msg) bool { return true }
-
-func (c *Cluster) FindRegistered(addr string) string {
-	realAddr := url.URL{Host: addr}
-
-	for i, server := range c.servers {
-		if slices.Contains(server.Addr, realAddr.Hostname()) {
-			return i
-		}
+func (c *Cluster) GetServer(id string) *Server {
+	if server, ok := c.servers[id]; ok {
+		return server
 	}
-
-	return ""
+	return nil
 }
 
 func NewCluster(cfg ClusterConfig) *Cluster {
 	m := make(map[string]*Server)
 
 	for _, server := range cfg.Servers {
-		id := uuid.Must(uuid.NewUUID()).String()
-		server.Identifier = id
+		id := server.Identifier
 		m[id] = &server
 	}
 

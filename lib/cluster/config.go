@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"slices"
 
 	"github.com/Davido264/go-crud-yourself/lib/assert"
 )
@@ -20,7 +21,7 @@ type ClusterConfig struct {
 	Servers         []Server `json:"servers"`
 	ChannelSize     int      `json:"chsize"`
 	ProtocolVersion int      `json:"protocolVersion"`
-	web   			string   `json:"webPath"`
+	Web             string   `json:"webPath"`
 }
 
 func defaultForErr(err error) ClusterConfig {
@@ -65,6 +66,12 @@ func ReadConfig(filepath string) ClusterConfig {
 
 	if cfg.ProtocolVersion == 0 {
 		cfg.ProtocolVersion = defaultProtocolVersion
+	}
+
+	if slices.ContainsFunc(cfg.Servers, func(s Server) bool {
+		return s.Identifier == ""
+	}) {
+		log.Fatalf("%v Error: Missing server tokens\n", clusterctag)
 	}
 
 	log.Printf("%v Using config: %v\n", clusterctag, cfg)

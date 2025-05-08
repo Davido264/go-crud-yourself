@@ -45,10 +45,11 @@ func main() {
 
 	http.HandleFunc("GET /service-integration", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Service integration request from %v\n", r.RemoteAddr)
-		id := c.FindRegistered(r.RemoteAddr)
+		log.Printf("ClientId %v\n", r.URL.Query().Get("clientId"))
+		id := r.URL.Query().Get("clientId")
 
-		if id == "" {
-			log.Printf("No server registered for %v\n", r.RemoteAddr)
+		if c.GetServer(id) == nil {
+			log.Printf("No server registered for %v\n", id)
 			w.WriteHeader(http.StatusForbidden)
 			return
 		}
