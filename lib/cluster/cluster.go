@@ -81,7 +81,16 @@ func (c *Cluster) ListenNotifications() {
 
 func (c *Cluster) ListenEvents() {
 	for ev := range c.eventch {
-		c.NotifyManagers(ev)
+		jsonEv, err := json.Marshal(ev)
+		assert.AssertErrNotNil(err)
+
+		c.NotifyManagers(jsonEv)
+	}
+}
+
+func (c *Cluster) ListenLogs() {
+	for log := range c.logch {
+		c.NotifyManagers(log)
 	}
 }
 
@@ -115,13 +124,11 @@ func (c *Cluster) NotifiyServers(msg protocol.Msg) {
 	}
 }
 
-func (c *Cluster) NotifyManagers(ev event.Event) {
-	logger.Printf("%v Notifying connected manager clients\n", clustermtag)
-	encev, err := json.Marshal(ev)
-	assert.AssertErrNotNil(err)
+func (c *Cluster) NotifyManagers(ev []byte) {
+	logger.LocalOnlyPrintf("%v Notifying connected manager clients\n", clustermtag)
 
 	for i := range c.managers {
-		c.managers[i].C.Clientch <- encev
+		c.managers[i].C.Clientch <- ev
 	}
 }
 

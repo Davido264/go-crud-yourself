@@ -7,12 +7,16 @@ import (
 var wsLogger *log.Logger = nil
 
 type ManagerLogger struct {
-	Logch chan []byte
+	Logch chan<- []byte
 }
 
 func (m ManagerLogger) Write(p []byte) (int, error) {
 	m.Logch <- p
 	return len(p), nil
+}
+
+func LocalOnlyPrintf(format string, v ...any) {
+	log.Printf(format, v...)
 }
 
 func Printf(format string, v ...any) {
@@ -42,8 +46,8 @@ func Panic(err error) {
 	log.Panic(err)
 }
 
-func RegisterLogger(logch <-chan []byte) {
+func RegisterLogger(logch chan<- []byte) {
 	if wsLogger == nil {
-		wsLogger = log.New(&ManagerLogger{}, "", log.LstdFlags)
+		wsLogger = log.New(&ManagerLogger{Logch: logch}, "", log.LstdFlags)
 	}
 }

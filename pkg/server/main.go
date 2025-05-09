@@ -37,8 +37,11 @@ func main() {
 
 	c := cluster.NewCluster(cfg)
 
+	go c.ListenLogs()
 	go c.ListenNotifications()
 	go c.ListenEvents()
+
+	c.JoinClusters()
 
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  1024,
