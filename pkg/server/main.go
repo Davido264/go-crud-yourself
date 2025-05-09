@@ -1,14 +1,16 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 
+	"github.com/Davido264/go-crud-yourself/lib/assert"
 	"github.com/Davido264/go-crud-yourself/lib/cluster"
 	_ "github.com/Davido264/go-crud-yourself/lib/errs"
+	"github.com/Davido264/go-crud-yourself/lib/logger"
 	"github.com/gorilla/websocket"
 )
 
@@ -19,7 +21,7 @@ func main() {
 	for _, file := range configPaths {
 		f, err := os.Stat(file)
 		if err != nil || !f.Mode().IsRegular() {
-			log.Printf("Unable to use %v\n", file)
+			logger.Printf("Unable to use %v\n", file)
 			continue
 		}
 		cfgpath = file
@@ -44,12 +46,20 @@ func main() {
 	}
 
 	http.HandleFunc("GET /service-integration", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Service integration request from %v\n", r.RemoteAddr)
-		log.Printf("ClientId %v\n", r.URL.Query().Get("clientId"))
+		logger.Printf("Service integration request from %v\n", r.RemoteAddr)
+		logger.Printf("ClientId %v\n", r.URL.Query().Get("clientId"))
 		id := r.URL.Query().Get("clientId")
 
-		if c.GetServer(id) == nil {
-			log.Printf("No server registered for %v\n", id)
+		srv := c.GetServer(id)
+
+		if srv == nil {
+			logger.Printf("No server registered for %v\n", id)
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		if srv.IsConnected() {
+			logger.Printf("Server %v already connected\n", id)
 			w.WriteHeader(http.StatusForbidden)
 			return
 		}
@@ -57,7 +67,7 @@ func main() {
 		conn, err := upgrader.Upgrade(w, r, nil)
 
 		if err != nil {
-			log.Printf("Cannot upgrade connection. %v\n", err)
+			logger.Printf("Cannot upgrade connection. %v\n", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -69,7 +79,7 @@ func main() {
 		conn, err := upgrader.Upgrade(w, r, nil)
 
 		if err != nil {
-			log.Printf("Cannot upgrade connection %v\n", err)
+			logger.Printf("Cannot upgrade connection %v\n", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -77,9 +87,18 @@ func main() {
 		c.AddManager(conn)
 	})
 
+	http.HandleFunc("GET /adm/servers", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+
+		servers, err := json.Marshal(c.ServerList())
+		assert.AssertErrNotNil(err)
+		w.Write(servers)
+	})
+
 	err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", cfg.Port), nil)
 
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Fatalf("Cannot start service: %v", err)
+		logger.Fatalf("Cannot start service: %v", err)
 	}
 }

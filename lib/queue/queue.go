@@ -52,7 +52,7 @@ func (q *MsgQueue) Pop() *protocol.Msg {
 	return &msg.Msg
 }
 
-func (q *MsgQueue) PopSince(timestamp any, entity protocol.MsgEntity) ([]protocol.Msg, error) {
+func (q *MsgQueue) PopSince(timestamp any, entity string) ([]protocol.Msg, error) {
 	q.Mutex.Lock()
 	defer q.Mutex.Unlock()
 
@@ -100,4 +100,12 @@ func (q *MsgQueue) PopSince(timestamp any, entity protocol.MsgEntity) ([]protoco
 	})
 
 	return result, nil
+}
+
+func New() MsgQueue {
+	return MsgQueue{
+		Mutex:         sync.Mutex{},
+		lastTimeStamp: time.Now().UTC().UnixMilli(),
+		queue:         []RCMsg{},
+	}
 }

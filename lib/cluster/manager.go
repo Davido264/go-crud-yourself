@@ -1,9 +1,8 @@
 package cluster
 
 import (
-	"log"
-
 	"github.com/Davido264/go-crud-yourself/lib/assert"
+	"github.com/Davido264/go-crud-yourself/lib/logger"
 	"github.com/gorilla/websocket"
 )
 
@@ -15,16 +14,15 @@ type ManagerNode struct {
 }
 
 func (m *ManagerNode) Disconnect() {
-
 	if m.C == nil {
-		log.Printf("%v Already disconnected\n", mtag)
+		logger.Printf("%v Already disconnected\n", mtag)
 		return
 	}
 
-	log.Printf("%v Closing connection\n", mtag)
+	logger.Printf("%v Closing connection\n", mtag)
 	err := m.C.Conn.Close()
 	if err != nil {
-		log.Printf("%v Error while closing connection: %v\n", mtag, err)
+		logger.Printf("%v Error while closing connection: %v\n", mtag, err)
 	}
 
 	close(m.C.Clientch)
@@ -41,8 +39,8 @@ func (m *ManagerNode) Serve() {
 		err := m.C.Conn.WriteMessage(websocket.TextMessage, msg)
 
 		if err != nil {
-			log.Printf("%v Error on websocket connection: %v\n", mtag, err)
-			if !m.C.IsClosed(err) {
+			logger.Printf("%v Error on websocket connection: %v\n", mtag, err)
+			if !m.C.IsClosedOrBrokenPipe(err) {
 				break
 			}
 		}

@@ -2,19 +2,19 @@ package protocol
 
 import (
 	"encoding/json"
-	"log"
 
 	"github.com/Davido264/go-crud-yourself/lib/errs"
+	"github.com/Davido264/go-crud-yourself/lib/logger"
 )
 
 const (
-	errnoInvalidFieldStr  string = "ERRNO_INVALID_FIELD"
-	errnoInvalidFormatStr string = "ERRNO_INVALID_FORMAT"
-	errnoNotAllowedStr    string = "ERRNO_NOT_ALLOWED"
-	errnoInvalidArgsStr   string = "ERRNO_INVALID_ARGS"
-	errnoUnknownStr      string = "ERRNO_UNKNOWN"
+	errnoInvalidFieldStr           string = "ERRNO_INVALID_FIELD"
+	errnoInvalidFormatStr          string = "ERRNO_INVALID_FORMAT"
+	errnoNotAllowedStr             string = "ERRNO_NOT_ALLOWED"
+	errnoInvalidArgsStr            string = "ERRNO_INVALID_ARGS"
+	errnoUnknownStr                string = "ERRNO_UNKNOWN"
 	errnoInvalidProtocolVersionStr string = "ERRNO_INVALID_PROTOCOL_VERSION"
-	errnoMissingDataStr string = "ERRNO_MISSING_DATA_FOR_QUERY"
+	errnoMissingDataStr            string = "ERRNO_MISSING_DATA_FOR_QUERY"
 )
 
 type Response interface {
@@ -26,55 +26,32 @@ type SuccessResponse struct {
 	Data    map[string]any `json:"data"`
 }
 
-type errno int
 type ErrorResponse struct {
-	Version int   `json:"version"`
-	Errno   errno `json:"errno"`
+	Version int    `json:"version"`
+	Errno   string `json:"errno"`
 }
 
-func (e errno) MarshalJSON() ([]byte, error) {
-	var s string
-	switch errs.Errt(e) {
-	case errs.ErrnoInvalidField:
-		s = errnoInvalidFieldStr
-	case errs.ErrnoInvalidFormat:
-		s = errnoInvalidFormatStr
-	case errs.ErrnoNotAllowed:
-		s = errnoNotAllowedStr
-	case errs.ErrnoInvalidArgs:
-		s = errnoInvalidArgsStr
-	case errs.ErrnoInvalidProtocolVersion:
-		s = errnoInvalidProtocolVersionStr
-	case errs.ErrnoMissingData:
-		s = errnoMissingDataStr
-	default:
-		s = ""
-	}
-
-	return json.Marshal(s)
-}
-
-func ErrnoOf(err error) errno {
+func ErrnoOf(err error) string {
 	if _, ok := err.(*json.SyntaxError); ok {
-		return errno(errs.ErrnoInvalidFormat)
+		return errnoInvalidFormatStr
 	}
 
 	switch {
 	case errs.Is(err, errs.ErrnoInvalidField):
-		return errno(errs.ErrnoInvalidField)
+		return errnoInvalidFieldStr
 	case errs.Is(err, errs.ErrnoInvalidFormat):
-		return errno(errs.ErrnoInvalidFormat)
+		return errnoInvalidFormatStr
 	case errs.Is(err, errs.ErrnoNotAllowed):
-		return errno(errs.ErrnoNotAllowed)
+		return errnoNotAllowedStr
 	case errs.Is(err, errs.ErrnoInvalidArgs):
-		return errno(errs.ErrnoInvalidArgs)
+		return errnoInvalidArgsStr
 	case errs.Is(err, errs.ErrnoInvalidProtocolVersion):
-		return errno(errs.ErrnoInvalidProtocolVersion)
+		return errnoInvalidProtocolVersionStr
 	case errs.Is(err, errs.ErrnoMissingData):
-		return errno(errs.ErrnoMissingData)
+		return errnoMissingDataStr
 	}
 
-	return errno(errs.ErrnoUnknown)
+	return errnoUnknownStr
 }
 
 func Ok(protocolVersion int, data map[string]any) []byte {
@@ -84,7 +61,7 @@ func Ok(protocolVersion int, data map[string]any) []byte {
 	})
 
 	if err != nil {
-		log.Panic(err)
+		logger.Panic(err)
 	}
 
 	return resp
@@ -97,7 +74,7 @@ func Err(protocolVersion int, err error) []byte {
 	})
 
 	if err != nil {
-		log.Panic(err)
+		logger.Panic(err)
 	}
 
 	return resp

@@ -1,20 +1,29 @@
 package cluster
 
 import (
-	"log"
+	"context"
 	"sync"
 	"time"
 
 	"github.com/Davido264/go-crud-yourself/lib/assert"
 	"github.com/Davido264/go-crud-yourself/lib/event"
+	"github.com/Davido264/go-crud-yourself/lib/logger"
 	"github.com/Davido264/go-crud-yourself/lib/protocol"
 	"github.com/gorilla/websocket"
 )
 
 type Server struct {
-	Identifier string `json:"token"`
-	Alias      string `json:"alias"`
-	C          *Conn  `json:"-"`
+	Identifier string     `json:"token"`
+	Alias      string     `json:"alias"`
+	Address    string     `json:"address"`
+	C          *Conn      `json:"-"`
+	Mut        sync.Mutex `json:"-"`
+}
+
+func (s *Server) IsConnected() bool {
+	s.Mut.Lock()
+	defer s.Mut.Unlock()
+	return s.C != nil
 }
 
 func (s *Server) DisplayName() string {
@@ -26,16 +35,18 @@ func (s *Server) DisplayName() string {
 }
 
 func (s *Server) Disconnect() {
+	s.Mut.Lock()
+	defer s.Mut.Unlock()
 
 	if s.C == nil {
-		log.Printf("[%v] Already disconnected\n", s.DisplayName())
+		logger.Printf("[%v] Already disconnected\n", s.DisplayName())
 		return
 	}
 
-	log.Printf("[%v] Closing connection\n", s.DisplayName())
+	logger.Printf("[%v] Closing connection\n", s.DisplayName())
 	err := s.C.Conn.Close()
-	if err != nil {
-		log.Printf("[%v] Error closing connection: %v\n", s.DisplayName(), err)
+	if err != nil && s.C.IsClosedOrBrokenPipe(err) {
+		logger.Printf("[%v] Error closing connection: %v\n", s.DisplayName(), err)
 	}
 
 	s.C.Eventch <- event.Event{
@@ -52,19 +63,20 @@ func (s *Server) ListenAndServe() {
 
 	defer s.Disconnect()
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	wg := sync.WaitGroup{}
 	wg.Add(2)
-
-	go s.listen(&wg)
-	go s.serve(&wg)
+	go s.listen(cancel, &wg)
+	go s.serve(ctx, cancel, &wg)
 
 	wg.Wait()
 }
 
-func (s *Server) listen(wg *sync.WaitGroup) {
+func (s *Server) listen(cancel context.CancelFunc, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	log.Printf("[%v] Listening\n", s.DisplayName())
+	logger.Printf("[%v] Listening\n", s.DisplayName())
 
 	s.C.Eventch <- event.Event{
 		Type:   event.EServerJoin,
@@ -72,17 +84,20 @@ func (s *Server) listen(wg *sync.WaitGroup) {
 	}
 
 	for {
-		log.Printf("[%v] Received message from client\n", s.DisplayName())
 		var msg protocol.Msg
 		err := s.C.Conn.ReadJSON(&msg)
+
 		if err != nil {
-			log.Printf("[%v] Error on websocket connection: %v\n", s.DisplayName(), err)
-			break
+			if !s.C.IsClosedOrBrokenPipe(err) {
+				logger.Printf("[%v] Error on websocket connection: %v\n", s.DisplayName(), err)
+			}
+			cancel()
+			return
 		}
 
 		err = protocol.ValidateMsg(s.C.protocolVersion, msg)
 		if err != nil {
-			log.Printf("[%v] Invalid message: %v\n", s.DisplayName(), err)
+			logger.Printf("[%v] Invalid message: %v\n", s.DisplayName(), err)
 			s.C.Clientch <- protocol.Err(s.C.protocolVersion, err)
 			continue
 		}
@@ -93,33 +108,45 @@ func (s *Server) listen(wg *sync.WaitGroup) {
 		s.C.Eventch <- event.Event{
 			Type:   event.EServerMsg,
 			Server: s.Identifier,
+			Msg:    &msg,
 		}
 
-		if msg.Action == protocol.ActionGet {
-			s.C.Notifch <- msg
-			continue
-		}
+		s.C.Notifch <- msg
 
-		s.C.Clientch <- protocol.Ok(msg.Version, map[string]any{
-			protocol.FieldLastTimeStamp: msg.LastTimeStamp,
-		})
+		if msg.Action != protocol.ActionGet {
+			s.C.Clientch <- protocol.Ok(msg.Version, map[string]any{
+				protocol.FieldLastTimeStamp: msg.LastTimeStamp,
+			})
+		}
 	}
 }
 
-func (s *Server) serve(wg *sync.WaitGroup) {
+func (s *Server) serve(ctx context.Context, cancel context.CancelFunc, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	log.Printf("[%v] Serving\n", s.DisplayName())
-	for msg := range s.C.Clientch {
-		log.Printf("[%v] Sending message to client\n", s.DisplayName())
-		s.C.SetWriteDeadline()
-		err := s.C.Conn.WriteMessage(websocket.TextMessage, msg)
+	logger.Printf("[%v] Serving\n", s.DisplayName())
+	for {
+		select {
+		case msg := <-s.C.Clientch:
+			{
+				logger.Printf("[%v] Sending message to client\n", s.DisplayName())
+				s.C.Mut.Lock()
+				s.C.SetWriteDeadline()
+				err := s.C.Conn.WriteMessage(websocket.TextMessage, msg)
+				s.C.Mut.Unlock()
 
-		if err != nil {
-			log.Printf("[%v] Error on websocket connection: %v\n", s.DisplayName(), err)
-			if !s.C.IsClosed(err) {
-				break
+				if err != nil {
+					if !s.C.IsClosedOrBrokenPipe(err) {
+						logger.Printf("[%v] Error on websocket connection: %v\n", s.DisplayName(), err)
+					}
+					cancel()
+					return
+				}
+
+				logger.Printf("[%v] Message sent to client\n", s.DisplayName())
 			}
+		case <-ctx.Done():
+			return
 		}
 	}
 }

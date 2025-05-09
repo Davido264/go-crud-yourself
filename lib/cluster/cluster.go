@@ -2,10 +2,13 @@ package cluster
 
 import (
 	"encoding/json"
-	"log"
+	"fmt"
+	"net/http"
+	"net/url"
 
 	"github.com/Davido264/go-crud-yourself/lib/assert"
 	"github.com/Davido264/go-crud-yourself/lib/event"
+	"github.com/Davido264/go-crud-yourself/lib/logger"
 	"github.com/Davido264/go-crud-yourself/lib/protocol"
 	"github.com/Davido264/go-crud-yourself/lib/queue"
 	"github.com/gorilla/websocket"
@@ -15,6 +18,7 @@ const clustermtag = "[CLUSTER MANAGER]"
 
 type Cluster struct {
 	protocolVersion int
+	chsz            int
 
 	managers []ManagerNode
 	servers  map[string]*Server
@@ -23,18 +27,19 @@ type Cluster struct {
 	msgqueue queue.MsgQueue
 
 	eventch chan event.Event
+	logch   chan []byte
 }
 
 func (c *Cluster) ConnectServer(id string, conn *websocket.Conn) {
 	server := c.servers[id]
-	server.C = InitConn(conn, c.protocolVersion, c.notifych, c.eventch)
+	server.C = InitConn(conn, c.protocolVersion, c.chsz, c.notifych, c.eventch)
 
 	go server.ListenAndServe()
 }
 
 func (c *Cluster) AddManager(conn *websocket.Conn) {
 	nManager := ManagerNode{
-		C: InitConn(conn, c.protocolVersion, c.notifych, c.eventch),
+		C: InitConn(conn, c.protocolVersion, c.chsz, c.notifych, c.eventch),
 	}
 
 	c.managers = append(c.managers, nManager)
@@ -45,7 +50,7 @@ func (c *Cluster) ListenNotifications() {
 	for msg := range c.notifych {
 
 		if msg.Action == protocol.ActionGet {
-			log.Printf("%v Procesing request: %v\n", clustermtag, msg)
+			logger.Printf("%v Procesing request: %v\n", clustermtag, msg)
 
 			data := make(map[string]any)
 			switch msg.Entity {
@@ -55,7 +60,7 @@ func (c *Cluster) ListenNotifications() {
 				data[protocol.FieldLastTimeStamp] = c.msgqueue.LastTimeStamp()
 				actions, err := c.msgqueue.PopSince(data[protocol.FieldLastTimeStamp], msg.Entity)
 				if err != nil {
-					log.Printf("%v Error: %v\n", clustermtag, err)
+					logger.Printf("%v Error: %v\n", clustermtag, err)
 					c.servers[msg.ClientId].C.Clientch <- protocol.Err(c.protocolVersion, err)
 					continue
 				}
@@ -69,7 +74,7 @@ func (c *Cluster) ListenNotifications() {
 			continue
 		}
 
-		log.Printf("%v Propagating message: %v\n", clustermtag, msg)
+		logger.Printf("%v Propagating message: %v\n", clustermtag, msg)
 		c.NotifiyServers(msg)
 	}
 }
@@ -81,10 +86,10 @@ func (c *Cluster) ListenEvents() {
 }
 
 func (c *Cluster) NotifiyServers(msg protocol.Msg) {
-	log.Printf("%v Notifying servers\n", clustermtag)
+	logger.Printf("%v Notifying servers\n", clustermtag)
 	encmsg, err := json.Marshal(msg)
 	if err != nil {
-		log.Panic(err)
+		logger.Panic(err)
 	}
 
 	missingCount := 0
@@ -93,8 +98,12 @@ func (c *Cluster) NotifiyServers(msg protocol.Msg) {
 			continue
 		}
 
+		if c.servers[i].Address != "" {
+			msg.ClientId = c.servers[i].Identifier
+		}
+
 		if c.servers[i].C == nil {
-			log.Printf("%v Server %v is not connected. Skiping...\n", clustermtag, c.servers[i].DisplayName())
+			logger.Printf("%v Server %v is not connected. Skiping...\n", clustermtag, c.servers[i].DisplayName())
 			missingCount++
 			continue
 		}
@@ -107,12 +116,42 @@ func (c *Cluster) NotifiyServers(msg protocol.Msg) {
 }
 
 func (c *Cluster) NotifyManagers(ev event.Event) {
-	log.Printf("%v Notifying connected manager clients\n", clustermtag)
+	logger.Printf("%v Notifying connected manager clients\n", clustermtag)
 	encev, err := json.Marshal(ev)
 	assert.AssertErrNotNil(err)
 
 	for i := range c.managers {
 		c.managers[i].C.Clientch <- encev
+	}
+}
+
+func (c *Cluster) JoinClusters() {
+	for i := range c.servers {
+		if c.servers[i].Address == "" {
+			continue
+		}
+
+		logger.Printf("%v Joining cluster %v\n", clustermtag, c.servers[i].Alias)
+
+		u := url.URL{
+			Scheme: "ws",
+			Host:   c.servers[i].Address,
+			Path:   fmt.Sprintf("/service-integration?clientId=%s", c.servers[i].Identifier),
+		}
+
+		conn, res, err := websocket.DefaultDialer.Dial(u.String(), nil)
+
+		if err != nil {
+			logger.Printf("%v Error joining cluster %v: %v\n", clustermtag, c.servers[i].Alias, err)
+			continue
+		}
+
+		if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusSwitchingProtocols {
+			logger.Printf("%v Error joining cluster %v: HTTP Status %v\n", clustermtag, c.servers[i].Alias, res.Status)
+			continue
+		}
+
+		c.servers[i].C = InitConn(conn, c.protocolVersion, c.chsz, c.notifych, c.eventch)
 	}
 }
 
@@ -123,19 +162,32 @@ func (c *Cluster) GetServer(id string) *Server {
 	return nil
 }
 
+func (c *Cluster) ServerList() []Server {
+	servers := make([]Server, 0, len(c.servers))
+	for _, server := range c.servers {
+		servers = append(servers, *server)
+	}
+	return servers
+}
+
 func NewCluster(cfg ClusterConfig) *Cluster {
 	m := make(map[string]*Server)
 
-	for _, server := range cfg.Servers {
-		id := server.Identifier
-		m[id] = &server
+	for i := range cfg.Servers {
+		id := cfg.Servers[i].Identifier
+		m[id] = &cfg.Servers[i]
 	}
 
-	return &Cluster{
+	c := &Cluster{
 		servers:         m,
 		protocolVersion: cfg.ProtocolVersion,
+		msgqueue:        queue.New(),
 		managers:        []ManagerNode{},
 		notifych:        make(chan protocol.Msg, cfg.ChannelSize),
 		eventch:         make(chan event.Event, cfg.ChannelSize),
+		logch:           make(chan []byte, cfg.ChannelSize),
 	}
+
+	logger.RegisterLogger(c.logch)
+	return c
 }
