@@ -178,7 +178,7 @@ func (c *Cluster) ServerList() []Server {
 }
 
 func (c *Cluster) Status() map[string]any {
-	var connected int
+	connected := 0
 	for i := range c.servers {
 		if c.servers[i].C != nil {
 			connected++
