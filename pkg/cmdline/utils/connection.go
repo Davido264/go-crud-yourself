@@ -3,6 +3,7 @@ package connection
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 
@@ -32,6 +33,7 @@ func Websocket() (*websocket.Conn, error) {
 }
 
 func Status() (*http.Response, error) {
+	log.Println(fmt.Sprintf("http://%s/adm/status", Host))
 	return http.Get(fmt.Sprintf("http://%s/adm/status", Host))
 }
 

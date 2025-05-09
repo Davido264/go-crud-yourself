@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"fmt"
+	"io"
 	"log"
 
 	connection "github.com/Davido264/go-crud-yourself/pkg/cmdline/utils"
@@ -17,8 +19,11 @@ var ServersCmd = &cobra.Command{
 			log.Fatalf("Error getting servers: %v\n", err)
 		}
 
-		var body []byte
-		_, _ = resp.Request.Body.Read(body)
-		log.Println(string(body))
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Fatalf("Error reading response body: %v\n", err)
+		}
+
+		fmt.Println(string(body))
 	},
 }

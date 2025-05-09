@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/Davido264/go-crud-yourself/pkg/cmdline/commands"
 	connection "github.com/Davido264/go-crud-yourself/pkg/cmdline/utils"
@@ -15,10 +14,7 @@ func main() {
 		Short: "Command line tool to interact with middleware",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			if connection.Host == "" {
-				connection.Host = os.Getenv("MIDDLEWARE_HOST")
-				if connection.Host == "" {
-					return fmt.Errorf("host not specified via --host flag or MIDDLEWARE_HOST environment variable")
-				}
+				return fmt.Errorf("host not specified via --host flag or MIDDLEWARE_HOST environment variable")
 			}
 			return nil
 		},
@@ -28,5 +24,6 @@ func main() {
 	cmd.AddCommand(commands.StatusCmd)
 	cmd.AddCommand(commands.WatchCmd)
 
+	cmd.PersistentFlags().StringVar(&connection.Host, "host", "", "host")
 	cmd.Execute()
 }
