@@ -141,9 +141,10 @@ func (c *Cluster) JoinClusters() {
 		logger.Printf("%v Joining cluster %v\n", clustermtag, c.servers[i].Alias)
 
 		u := url.URL{
-			Scheme: "ws",
-			Host:   c.servers[i].Address,
-			Path:   fmt.Sprintf("/service-integration?clientId=%s", c.servers[i].Identifier),
+			Scheme:   "ws",
+			Host:     c.servers[i].Address,
+			Path:     "/service-integration",
+			RawQuery: fmt.Sprintf("clientId=%s", c.servers[i].Identifier),
 		}
 
 		conn, res, err := websocket.DefaultDialer.Dial(u.String(), nil)
