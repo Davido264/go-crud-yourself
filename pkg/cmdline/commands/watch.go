@@ -34,6 +34,6 @@ func watch() {
 		if t != websocket.TextMessage {
 			continue
 		}
-		fmt.Println(string(msg))
+		fmt.Print(string(msg))
 	}
 }

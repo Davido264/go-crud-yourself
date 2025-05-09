@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/Davido264/go-crud-yourself/lib/assert"
 	"github.com/Davido264/go-crud-yourself/lib/event"
 	"github.com/Davido264/go-crud-yourself/lib/logger"
 	"github.com/Davido264/go-crud-yourself/lib/protocol"
@@ -80,11 +79,11 @@ func (c *Cluster) ListenNotifications() {
 }
 
 func (c *Cluster) ListenEvents() {
-	for ev := range c.eventch {
-		jsonEv, err := json.Marshal(ev)
-		assert.AssertErrNotNil(err)
+	for _ = range c.eventch {
+		// jsonEv, err := json.Marshal(ev)
+		// assert.AssertErrNotNil(err)
 
-		c.NotifyManagers(jsonEv)
+		// c.NotifyManagers(jsonEv)
 	}
 }
 
