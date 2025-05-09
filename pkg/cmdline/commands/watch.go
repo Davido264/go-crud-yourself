@@ -3,7 +3,6 @@ package commands
 import (
 	"fmt"
 	"log"
-	"time"
 
 	connection "github.com/Davido264/go-crud-yourself/pkg/cmdline/utils"
 	"github.com/gorilla/websocket"
@@ -25,7 +24,6 @@ func watch() {
 		log.Fatalf("Error connecting to events: %v\n", err)
 	}
 
-	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	for {
 		t, msg, err := conn.ReadMessage()
 
