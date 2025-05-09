@@ -178,6 +178,21 @@ func (c *Cluster) ServerList() []Server {
 	return servers
 }
 
+func (c *Cluster) Status() map[string]any {
+	var connected int
+	for i := range c.servers {
+		if c.servers[i].C != nil {
+			connected++
+		}
+	}
+
+	return map[string]any{
+		"onlineServers": connected,
+		"lastTimeStamp": c.msgqueue.LastTimeStamp(),
+		"queueSize":     c.msgqueue.Len(),
+	}
+}
+
 func NewCluster(cfg ClusterConfig) *Cluster {
 	m := make(map[string]*Server)
 

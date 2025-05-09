@@ -99,6 +99,15 @@ func main() {
 		w.Write(servers)
 	})
 
+	http.HandleFunc("GET /adm/status", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+
+		servers, err := json.Marshal(c.Status())
+		assert.AssertErrNotNil(err)
+		w.Write(servers)
+	})
+
 	err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", cfg.Port), nil)
 
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {

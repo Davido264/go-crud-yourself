@@ -42,7 +42,7 @@ const (
 
 type Msg struct {
 	Version       int            `json:"version"`
-	Action        string      `json:"action"`
+	Action        string         `json:"action"`
 	Entity        string         `json:"entity"`
 	Args          map[string]any `json:"args"`
 	ClientId      string         `json:"-"`
@@ -77,12 +77,12 @@ func ValidateMsg(protocolVersion int, msg Msg) error {
 		return errs.New(errs.ErrnoNotAllowed)
 	}
 
-	if msg.Action == ActionDel && msg.Args[fieldId] == nil {
+	if msg.Action == ActionGet && msg.Entity != EntityStatus && isNaN(msg.Args[FieldLastTimeStamp]) {
 		return errs.New(errs.ErrnoInvalidArgs)
 	}
 
-	if msg.Action == ActionGet && msg.Entity != EntityStatus && isNaN(msg.Args[FieldLastTimeStamp]) {
-		return errs.New(errs.ErrnoInvalidArgs)
+	if msg.Action != ActionPut {
+		return nil
 	}
 
 	switch msg.Entity {

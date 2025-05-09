@@ -20,6 +20,10 @@ type MsgQueue struct {
 	queue         []RCMsg
 }
 
+func (q *MsgQueue) Len() int {
+	return len(q.queue)
+}
+
 func (q *MsgQueue) LastTimeStamp() int64 {
 	return q.lastTimeStamp
 }
